@@ -1,4 +1,7 @@
-gradio
+streamlit
 langchain
 faiss-cpu
 openai
+requests
+beautifulsoup4
+tqdm
