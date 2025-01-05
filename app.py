@@ -5,7 +5,17 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 
-# Function to fetch courses
+@st.cache(allow_output_mutation=True)
+def create_vector_store(courses_data):
+    model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+    descriptions = [course['description'] for course in courses_data]
+    embeddings = model.encode(descriptions, convert_to_tensor=True)
+    embeddings = np.array(embeddings, dtype=np.float32)
+    faiss.normalize_L2(embeddings)
+    index = faiss.IndexFlatL2(embeddings.shape[1])
+    index.add(embeddings)
+    return index, embeddings
+
 def fetch_courses():
     BASE_URL = "https://courses.analyticsvidhya.com/collections/courses"
     headers = {
@@ -35,20 +45,8 @@ def get_course_data():
 
 courses_data = get_course_data()
 
-# Generate embeddings using Sentence Transformers
-@st.cache(allow_output_mutation=True)
-def create_vector_store(courses_data):
-    model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
-    descriptions = [course['description'] for course in courses_data]
-    embeddings = model.encode(descriptions, convert_to_tensor=True)
-    embeddings = np.array(embeddings)  # Convert embeddings to NumPy array
-    index = faiss.IndexFlatL2(embeddings.shape[1])
-    index.add(embeddings)
-    return index, embeddings
-
 index, embeddings = create_vector_store(courses_data)
 
-# Function to search courses
 def search_courses(query, k=5):
     model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
     query_embedding = model.encode([query], convert_to_tensor=True)
@@ -59,10 +57,8 @@ def search_courses(query, k=5):
         results.append(courses_data[i])
     return results
 
-# Streamlit App
 st.title("Smart Course Search")
 st.write("Search for free courses on Analytics Vidhya!")
-
 
 query = st.text_input("Enter your search query", "")
 
@@ -74,7 +70,6 @@ if query:
             st.write(f"**{idx}.** {result['title']}\n{result['description']}\n[Learn More]({result['url']})")
     else:
         st.write("No results found!")
-
 
 if st.checkbox("Show all courses"):
     st.write("### Available Courses")
