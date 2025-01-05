@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 
-
+# Function to fetch courses
 def fetch_courses():
     BASE_URL = "https://courses.analyticsvidhya.com/collections/courses"
     headers = {
@@ -41,7 +41,7 @@ def create_vector_store(courses_data):
     model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
     descriptions = [course['description'] for course in courses_data]
     embeddings = model.encode(descriptions, convert_to_tensor=True)
-    embeddings = np.array(embeddings)
+    embeddings = np.array(embeddings)  # Convert embeddings to NumPy array
     index = faiss.IndexFlatL2(embeddings.shape[1])
     index.add(embeddings)
     return index, embeddings
