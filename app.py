@@ -5,8 +5,7 @@ from langchain.embeddings import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 import os
 
-
-os.environ["OPENAI_API_KEY"] = "api-key"
+os.environ["OPENAI_API_KEY"] = "your-api-key"
 
 # Function to fetch courses
 def fetch_courses():
@@ -20,7 +19,7 @@ def fetch_courses():
     
     soup = BeautifulSoup(response.text, "html.parser")
     courses = []
-    course_blocks = soup.find_all("div", class_="course-block") 
+    course_blocks = soup.find_all("div", class_="course-block")
     for block in course_blocks:
         try:
             title = block.find("h4", class_="course-title").text.strip()
@@ -32,15 +31,14 @@ def fetch_courses():
             st.error(f"Error parsing course: {e}")
     return courses
 
-
-@st.cache
+@st.cache_data
 def get_course_data():
     return fetch_courses()
 
 courses_data = get_course_data()
 
 # Generate embeddings using OpenAI
-@st.cache(allow_output_mutation=True)
+@st.cache_resource
 def create_vector_store(courses_data):
     embeddings = OpenAIEmbeddings()
     descriptions = [course['description'] for course in courses_data]
@@ -57,11 +55,11 @@ def search_courses(query, k=5):
     results = vector_store.similarity_search(query, k=k)
     return results
 
-# Streamlit App
+
 st.title("Smart Course Search")
 st.write("Search for free courses on Analytics Vidhya!")
 
-# Input from user
+
 query = st.text_input("Enter your search query", "")
 
 if query:
@@ -73,7 +71,7 @@ if query:
     else:
         st.write("No results found!")
 
-# Optionally, display the fetched course data
+
 if st.checkbox("Show all courses"):
     st.write("### Available Courses")
     for course in courses_data:
