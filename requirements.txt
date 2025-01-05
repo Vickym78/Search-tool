@@ -1,7 +1,6 @@
 streamlit
-langchain
 faiss-cpu
-openai
 requests
 beautifulsoup4
 tqdm
+sentence-transformers
