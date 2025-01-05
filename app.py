@@ -1,6 +1,14 @@
+import streamlit as st
 import requests
 from bs4 import BeautifulSoup
+from langchain.embeddings import OpenAIEmbeddings
+from langchain.vectorstores import FAISS
+import os
 
+
+os.environ["OPENAI_API_KEY"] = "api-key"
+
+# Function to fetch courses
 def fetch_courses():
     BASE_URL = "https://courses.analyticsvidhya.com/collections/courses"
     headers = {
@@ -12,7 +20,7 @@ def fetch_courses():
     
     soup = BeautifulSoup(response.text, "html.parser")
     courses = []
-    course_blocks = soup.find_all("div", class_="course-block")  # Adjust based on site structure
+    course_blocks = soup.find_all("div", class_="course-block") 
     for block in course_blocks:
         try:
             title = block.find("h4", class_="course-title").text.strip()
@@ -21,42 +29,52 @@ def fetch_courses():
             url = f"https://courses.analyticsvidhya.com{link}"
             courses.append({"title": title, "description": description, "url": url})
         except Exception as e:
-            print(f"Error parsing course: {e}")
+            st.error(f"Error parsing course: {e}")
     return courses
 
-# Fetch the course data
-courses_data = fetch_courses()
-print(f"Fetched {len(courses_data)} courses.")
-from langchain.embeddings import OpenAIEmbeddings
-from langchain.vectorstores import FAISS
 
-# Generate embeddings using OpenAI or another model
-embeddings = OpenAIEmbeddings()  # Requires OpenAI API Key in the environment
+@st.cache
+def get_course_data():
+    return fetch_courses()
 
-# Create vector database with FAISS
-descriptions = [course['description'] for course in courses_data]
-vector_store = FAISS.from_texts(descriptions, embeddings)
+courses_data = get_course_data()
 
-# Save the vector database locally
-vector_store.save_local("course_embeddings")
+# Generate embeddings using OpenAI
+@st.cache(allow_output_mutation=True)
+def create_vector_store(courses_data):
+    embeddings = OpenAIEmbeddings()
+    descriptions = [course['description'] for course in courses_data]
+    vector_store = FAISS.from_texts(descriptions, embeddings)
+    vector_store.save_local("course_embeddings")
+    return vector_store
+
+vector_store = create_vector_store(courses_data)
+
+# Function to search courses
 def search_courses(query, k=5):
-    # Load the saved vector store
+    embeddings = OpenAIEmbeddings()
     vector_store = FAISS.load_local("course_embeddings", embeddings)
     results = vector_store.similarity_search(query, k=k)
     return results
-import gradio as gr
 
-# Define the Gradio function for search
-def query_interface(input_text):
-    results = search_courses(input_text)
-    output = "\n\n".join([f"{i+1}. {result['text']}" for i, result in enumerate(results)])
-    return output
+# Streamlit App
+st.title("Smart Course Search")
+st.write("Search for free courses on Analytics Vidhya!")
 
-# Create a Gradio app
-interface = gr.Interface(
-    fn=query_interface,
-    inputs=gr.Textbox(label="Search for Free Courses"),
-    outputs=gr.Textbox(label="Search Results"),
-    title="Smart Course Search",
-    description="Search for the most relevant free courses on Analytics Vidhya."
-)
+# Input from user
+query = st.text_input("Enter your search query", "")
+
+if query:
+    st.write("### Search Results")
+    results = search_courses(query)
+    if results:
+        for idx, result in enumerate(results, start=1):
+            st.write(f"**{idx}.** {result['text']}")
+    else:
+        st.write("No results found!")
+
+# Optionally, display the fetched course data
+if st.checkbox("Show all courses"):
+    st.write("### Available Courses")
+    for course in courses_data:
+        st.write(f"**{course['title']}**\n{course['description']}\n[Learn More]({course['url']})")
