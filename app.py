@@ -50,7 +50,8 @@ index, embeddings = create_vector_store(courses_data)
 def search_courses(query, k=5):
     model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
     query_embedding = model.encode([query], convert_to_tensor=True)
-    query_embedding = np.array(query_embedding)
+    query_embedding = np.array(query_embedding, dtype=np.float32)
+    faiss.normalize_L2(query_embedding)
     distances, indices = index.search(query_embedding, k)
     results = []
     for i in indices[0]:
